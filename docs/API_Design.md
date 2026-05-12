@@ -20,7 +20,53 @@ Authorization: Bearer <clerk_jwt_token>
 
 ## 1. Datasets
 
-Endpoints for dataset validation and previewing.
+Endpoints for dataset management, validation, and previewing.
+
+### List Datasets
+Retrieves all datasets for the authenticated user.
+
+- **URL**: `GET /datasets`
+- **Response**: `list[DatasetRead]`
+  ```json
+  [
+    {
+      "id": "string",
+      "name": "string",
+      "file_url": "string",
+      "uploadthing_key": "string",
+      "user_id": "string",
+      "validation_status": "PENDING" | "VALID" | "INVALID" | "WARNING",
+      "created_at": "string",
+      "row_count": number
+    }
+  ]
+  ```
+
+### Create Dataset Record
+Registers a new dataset (after it has been uploaded to storage).
+
+- **URL**: `POST /datasets`
+- **Request Body**: `DatasetCreate`
+  ```json
+  {
+    "id": "string",
+    "name": "string",
+    "file_url": "string",
+    "uploadthing_key": "string"
+  }
+  ```
+- **Response**: `DatasetRead` (same as above)
+
+### Delete Dataset
+Soft-deletes a dataset.
+
+- **URL**: `DELETE /datasets/{dataset_id}`
+- **Response**:
+  ```json
+  {
+    "status": "deleted"
+  }
+  ```
 
 ### Validate Dataset
 Validates a dataset file against required columns and format.
@@ -60,6 +106,38 @@ Retrieves a preview (first N rows) of the dataset.
     "row_count": number
   }
   ```
+
+### List Weather Datasets
+Retrieves all weather datasets for the authenticated user.
+
+- **URL**: `GET /datasets/weather`
+- **Response**: `list[WeatherDataset]`
+  ```json
+  [
+    {
+      "id": "string",
+      "dataset_id": "string",
+      "file_url": "string",
+      "uploadthing_key": "string",
+      "created_at": "string"
+    }
+  ]
+  ```
+
+### Create Weather Dataset Record
+Registers a new weather dataset linked to a consumption dataset.
+
+- **URL**: `POST /datasets/weather`
+- **Request Body**: `WeatherDatasetCreate`
+  ```json
+  {
+    "id": "string",
+    "dataset_id": "string",
+    "file_url": "string",
+    "uploadthing_key": "string"
+  }
+  ```
+- **Response**: `WeatherDataset` (same as above)
 
 ---
 

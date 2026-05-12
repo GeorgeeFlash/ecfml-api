@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.agents.graph import compile_graph
 from app.config import settings
+from app.database import create_db_and_tables
 from app.routers import datasets, forecast, models, preprocessing
 
 compiled_graph = None
@@ -13,6 +14,9 @@ compiled_graph = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global compiled_graph
+    # Create DB tables
+    create_db_and_tables()
+    
     compiled_graph = compile_graph()
     app.state.agent_graph = compiled_graph
     yield

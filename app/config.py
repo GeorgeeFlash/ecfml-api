@@ -13,6 +13,7 @@ ALLOWED_MODELS = {
 class Settings(BaseSettings):
     CLERK_JWKS_URL: str = ""
     ALLOWED_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
+    DATABASE_URL: str = "sqlite:///./ecfml.db"
     DATA_DIR: str = "./data"
     MODELS_DIR: str = "./models"
     ACTIVE_LLM_MODEL: str = "openai/gpt-5.4"
