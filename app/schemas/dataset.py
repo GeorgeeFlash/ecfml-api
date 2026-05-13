@@ -27,13 +27,14 @@ class DatasetPreviewResponse(BaseModel):
 
 
 class DatasetCreate(BaseModel):
-    id: str
     name: str
     file_url: str
+    id: Optional[str] = None
     uploadthing_key: Optional[str] = None
 
 
 class DatasetRead(DatasetCreate):
+    id: str # Ensure id is present in read model
     user_id: str
     validation_status: str
     created_at: datetime
@@ -41,7 +42,7 @@ class DatasetRead(DatasetCreate):
 
 
 class WeatherDatasetCreate(BaseModel):
-    id: str
     dataset_id: str
     file_url: str
+    id: Optional[str] = None
     uploadthing_key: Optional[str] = None

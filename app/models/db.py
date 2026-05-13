@@ -1,9 +1,10 @@
+import uuid
 from datetime import datetime
 from typing import Optional
 from sqlmodel import Field, Relationship, SQLModel, JSON, Column
 
 class Dataset(SQLModel, table=True):
-    id: str = Field(primary_key=True)
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     user_id: str = Field(index=True)
     name: str
     file_url: str
@@ -17,7 +18,7 @@ class Dataset(SQLModel, table=True):
     weather_datasets: list["WeatherDataset"] = Relationship(back_populates="dataset")
 
 class WeatherDataset(SQLModel, table=True):
-    id: str = Field(primary_key=True)
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     user_id: str = Field(index=True)
     dataset_id: str = Field(foreign_key="dataset.id")
     file_url: str

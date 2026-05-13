@@ -50,12 +50,14 @@ def preview_dataset(file_url: str, rows: int = 100) -> DatasetPreviewResponse:
 
 
 def create_dataset(session: Session, data: DatasetCreate, user_id: str) -> Dataset:
+    # Use model_dump to get values, then remove None id to let SQLModel use default_factory
+    dataset_data = data.model_dump(exclude={"id"})
+    if data.id:
+        dataset_data["id"] = data.id
+    
     db_dataset = Dataset(
-        id=data.id,
+        **dataset_data,
         user_id=user_id,
-        name=data.name,
-        file_url=data.file_url,
-        uploadthing_key=data.uploadthing_key,
     )
     # Proactively validate and update row count
     try:
@@ -88,12 +90,14 @@ def delete_dataset(session: Session, dataset_id: str, user_id: str):
 
 
 def create_weather_dataset(session: Session, data: WeatherDatasetCreate, user_id: str) -> WeatherDataset:
+    # Use model_dump to get values, then remove None id to let SQLModel use default_factory
+    weather_data = data.model_dump(exclude={"id"})
+    if data.id:
+        weather_data["id"] = data.id
+        
     db_weather = WeatherDataset(
-        id=data.id,
+        **weather_data,
         user_id=user_id,
-        dataset_id=data.dataset_id,
-        file_url=data.file_url,
-        uploadthing_key=data.uploadthing_key,
     )
     session.add(db_weather)
     session.commit()

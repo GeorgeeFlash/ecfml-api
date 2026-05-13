@@ -18,6 +18,37 @@ Authorization: Bearer <clerk_jwt_token>
 
 ---
 
+## Error Responses
+
+The API uses standard HTTP status codes to indicate the success or failure of a request.
+
+| Status Code | Description |
+| :--- | :--- |
+| `200 OK` | The request was successful. |
+| `201 Created` | The resource was successfully created. |
+| `400 Bad Request` | The request was invalid or could not be processed. |
+| `401 Unauthorized` | Authentication failed or the user lacks permissions. |
+| `403 Forbidden` | The user does not have access to the requested resource. |
+| `404 Not Found` | The requested resource was not found. |
+| `422 Unprocessable Entity` | Validation error (e.g., missing fields, wrong types). |
+| `500 Internal Server Error` | An unexpected error occurred on the server. |
+
+### Validation Error Detail (422)
+When a `422` error occurs, the response body contains details about the failure:
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "file_url"],
+      "msg": "field required",
+      "type": "value_error.missing"
+    }
+  ]
+}
+```
+
+---
+
 ## 1. Datasets
 
 Endpoints for dataset management, validation, and previewing.
@@ -26,6 +57,7 @@ Endpoints for dataset management, validation, and previewing.
 Retrieves all datasets for the authenticated user.
 
 - **URL**: `GET /datasets`
+- **Status Code**: `200 OK`
 - **Response**: `list[DatasetRead]`
   ```json
   [
@@ -46,13 +78,14 @@ Retrieves all datasets for the authenticated user.
 Registers a new dataset (after it has been uploaded to storage).
 
 - **URL**: `POST /datasets`
+- **Status Code**: `201 Created`
 - **Request Body**: `DatasetCreate`
   ```json
   {
-    "id": "string",
     "name": "string",
     "file_url": "string",
-    "uploadthing_key": "string"
+    "uploadthing_key": "string",
+    "id": "string" (optional)
   }
   ```
 - **Response**: `DatasetRead` (same as above)
@@ -61,6 +94,7 @@ Registers a new dataset (after it has been uploaded to storage).
 Soft-deletes a dataset.
 
 - **URL**: `DELETE /datasets/{dataset_id}`
+- **Status Code**: `200 OK`
 - **Response**:
   ```json
   {
@@ -72,6 +106,7 @@ Soft-deletes a dataset.
 Validates a dataset file against required columns and format.
 
 - **URL**: `POST /datasets/{dataset_id}/validate`
+- **Status Code**: `200 OK`
 - **Request Body**:
   ```json
   {
@@ -95,6 +130,7 @@ Validates a dataset file against required columns and format.
 Retrieves a preview (first N rows) of the dataset.
 
 - **URL**: `GET /datasets/{dataset_id}/preview`
+- **Status Code**: `200 OK`
 - **Query Parameters**:
   - `file_url` (string, required): URL of the dataset.
   - `rows` (number, default: 100): Number of rows to return (max 500).
@@ -111,6 +147,7 @@ Retrieves a preview (first N rows) of the dataset.
 Retrieves all weather datasets for the authenticated user.
 
 - **URL**: `GET /datasets/weather`
+- **Status Code**: `200 OK`
 - **Response**: `list[WeatherDataset]`
   ```json
   [
@@ -128,13 +165,14 @@ Retrieves all weather datasets for the authenticated user.
 Registers a new weather dataset linked to a consumption dataset.
 
 - **URL**: `POST /datasets/weather`
+- **Status Code**: `201 Created`
 - **Request Body**: `WeatherDatasetCreate`
   ```json
   {
-    "id": "string",
     "dataset_id": "string",
     "file_url": "string",
-    "uploadthing_key": "string"
+    "uploadthing_key": "string",
+    "id": "string" (optional)
   }
   ```
 - **Response**: `WeatherDataset` (same as above)
@@ -149,6 +187,7 @@ Endpoints for managing data preprocessing jobs.
 Starts a preprocessing job to prepare data for training.
 
 - **URL**: `POST /preprocessing/run`
+- **Status Code**: `200 OK`
 - **Request Body**:
   ```json
   {
@@ -179,6 +218,7 @@ Starts a preprocessing job to prepare data for training.
 Retrieves the status and result of a preprocessing job.
 
 - **URL**: `GET /preprocessing/{job_id}/status`
+- **Status Code**: `200 OK`
 - **Response**: `PreprocessingStatusResponse` (same as above)
 
 ---
@@ -191,6 +231,7 @@ Endpoints for training, evaluating, and managing machine learning models.
 Starts a training job for a specific model type.
 
 - **URL**: `POST /models/train`
+- **Status Code**: `200 OK`
 - **Request Body**:
   ```json
   {
@@ -217,12 +258,14 @@ Starts a training job for a specific model type.
 Retrieves the status of a training job.
 
 - **URL**: `GET /models/jobs/{job_id}/status`
+- **Status Code**: `200 OK`
 - **Response**: `ModelTrainResponse` (same as above)
 
 ### Evaluate Model
 Calculates performance metrics for a trained model on a test set.
 
 - **URL**: `POST /models/{model_id}/evaluate`
+- **Status Code**: `200 OK`
 - **Request Body**:
   ```json
   {
@@ -255,6 +298,7 @@ Endpoints for generating and streaming predictions.
 Generates a forecast using a trained model or the AI Agent.
 
 - **URL**: `POST /forecast`
+- **Status Code**: `200 OK`
 - **Request Body**:
   ```json
   {
@@ -284,6 +328,7 @@ Generates a forecast using a trained model or the AI Agent.
 Streams real-time updates from the AI Agent during forecast generation.
 
 - **URL**: `GET /forecast/stream/{agent_run_id}`
+- **Status Code**: `200 OK`
 - **Response**: `text/event-stream`
   - Each event is a JSON string: `data: {"type": "step", "step": "string", "details": "string"}`
 
@@ -291,6 +336,7 @@ Streams real-time updates from the AI Agent during forecast generation.
 Retrieves the final result or status of an agentic run.
 
 - **URL**: `GET /agents/{agent_run_id}/status`
+- **Status Code**: `200 OK`
 - **Response**:
   ```json
   {
