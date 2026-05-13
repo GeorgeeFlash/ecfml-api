@@ -141,3 +141,12 @@ def list_weather_datasets(session: Session, user_id: str) -> list[WeatherDataset
         )
     )
     return session.exec(statement).all()
+
+
+def delete_weather_dataset(session: Session, weather_dataset_id: str, user_id: str):
+    statement = select(WeatherDataset).where(WeatherDataset.id == weather_dataset_id, WeatherDataset.user_id == user_id)
+    db_weather = session.exec(statement).first()
+    if db_weather:
+        session.delete(db_weather)
+        session.commit()
+    return db_weather

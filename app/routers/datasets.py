@@ -17,6 +17,7 @@ from app.services.dataset_service import (
     create_dataset,
     create_weather_dataset,
     delete_dataset,
+    delete_weather_dataset,
     list_datasets,
     list_weather_datasets,
     preview_dataset,
@@ -168,4 +169,27 @@ async def create_weather_dataset_route(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create weather dataset: {str(e)}"
+        )
+
+
+@router.delete("/datasets/weather/{weather_dataset_id}")
+async def delete_weather_dataset_route(
+    weather_dataset_id: str,
+    session: Session = Depends(get_session),
+    user: dict = Depends(get_current_user),
+):
+    try:
+        logger.info(f"User {user['sub']} deleting weather dataset: {weather_dataset_id}")
+        db_weather = delete_weather_dataset(session, weather_dataset_id, user["sub"])
+        if not db_weather:
+            logger.warning(f"Weather dataset {weather_dataset_id} not found for deletion by user {user['sub']}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Weather dataset not found")
+        return {"status": "deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting weather dataset {weather_dataset_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete weather dataset"
         )

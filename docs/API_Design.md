@@ -179,6 +179,18 @@ Registers a new weather dataset linked to a consumption dataset.
   ```
 - **Response**: `WeatherDataset` (same as above)
 
+### Delete Weather Dataset
+Removes a weather dataset record.
+
+- **URL**: `DELETE /datasets/weather/{weather_dataset_id}`
+- **Status Code**: `200 OK`
+- **Response**:
+  ```json
+  {
+    "status": "deleted"
+  }
+  ```
+
 ---
 
 ## 2. Preprocessing
