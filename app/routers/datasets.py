@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlmodel import Session
+from sqlmodel import Session, select
 import logging
 
 from app.database import get_session
 from app.dependencies import get_current_user
+from app.models.db import Dataset
 from app.schemas.dataset import (
     DatasetCreate,
     DatasetPreviewResponse,
@@ -64,11 +65,18 @@ async def create_dataset_route(
 async def validate_dataset_route(
     dataset_id: str,
     body: DatasetValidationRequest,
+    session: Session = Depends(get_session),
     user: dict = Depends(get_current_user),
 ):
     try:
         logger.info(f"User {user['sub']} validating dataset: {dataset_id}")
-        return validate_dataset(body.file_url, body.required_columns)
+        return validate_dataset(
+            file_url=body.file_url,
+            required_columns=body.required_columns,
+            session=session,
+            dataset_id=dataset_id,
+            user_id=user["sub"]
+        )
     except Exception as e:
         logger.error(f"Error validating dataset {dataset_id}: {str(e)}")
         raise HTTPException(
@@ -80,13 +88,25 @@ async def validate_dataset_route(
 @router.get("/datasets/{dataset_id}/preview", response_model=DatasetPreviewResponse)
 async def preview_dataset_route(
     dataset_id: str,
-    file_url: str = Query(..., description="Dataset URL"),
+    file_url: str | None = Query(None, description="Dataset URL"),
     rows: int = Query(100, ge=1, le=500),
+    session: Session = Depends(get_session),
     user: dict = Depends(get_current_user),
 ):
     try:
         logger.info(f"User {user['sub']} previewing dataset: {dataset_id}")
-        return preview_dataset(file_url=file_url, rows=rows)
+        
+        # Verify dataset exists and belongs to user
+        statement = select(Dataset).where(Dataset.id == dataset_id, Dataset.user_id == user["sub"])
+        db_dataset = session.exec(statement).first()
+        if not db_dataset:
+            logger.warning(f"Dataset {dataset_id} not found for preview by user {user['sub']}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+            
+        url = file_url or db_dataset.file_url
+        return preview_dataset(file_url=url, rows=rows)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error previewing dataset {dataset_id}: {str(e)}")
         raise HTTPException(

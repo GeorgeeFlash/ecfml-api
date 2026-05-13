@@ -16,7 +16,11 @@ DEFAULT_REQUIRED_COLUMNS = ["timestamp", "consumption_kwh"]
 
 
 def validate_dataset(
-    file_url: str, required_columns: list[str] | None = None
+    file_url: str,
+    required_columns: list[str] | None = None,
+    session: Session | None = None,
+    dataset_id: str | None = None,
+    user_id: str | None = None,
 ) -> DatasetValidationReport:
     required = required_columns or DEFAULT_REQUIRED_COLUMNS
     df = load_dataset(file_url)
@@ -29,7 +33,7 @@ def validate_dataset(
         status = ValidationStatus.WARNING
         warnings.append("Dataset has fewer than 100 rows.")
 
-    return DatasetValidationReport(
+    report = DatasetValidationReport(
         status=status,
         missing_columns=missing,
         columns=columns,
@@ -37,6 +41,22 @@ def validate_dataset(
         warnings=warnings,
         details=None,
     )
+
+    if session and dataset_id:
+        statement = select(Dataset).where(Dataset.id == dataset_id)
+        if user_id:
+            statement = statement.where(Dataset.user_id == user_id)
+        
+        db_dataset = session.exec(statement).first()
+        if db_dataset:
+            db_dataset.validation_status = report.status.value
+            db_dataset.row_count = report.row_count
+            db_dataset.validation_report = report.model_dump()
+            session.add(db_dataset)
+            session.commit()
+            session.refresh(db_dataset)
+
+    return report
 
 
 def preview_dataset(file_url: str, rows: int = 100) -> DatasetPreviewResponse:
@@ -90,6 +110,12 @@ def delete_dataset(session: Session, dataset_id: str, user_id: str):
 
 
 def create_weather_dataset(session: Session, data: WeatherDatasetCreate, user_id: str) -> WeatherDataset:
+    # Verify parent dataset exists and is not deleted
+    statement = select(Dataset).where(Dataset.id == data.dataset_id, Dataset.user_id == user_id, Dataset.deleted_at == None)
+    db_dataset = session.exec(statement).first()
+    if not db_dataset:
+        raise ValueError(f"Dataset {data.dataset_id} not found or deleted")
+
     # Use model_dump to get values, then remove None id to let SQLModel use default_factory
     weather_data = data.model_dump(exclude={"id"})
     if data.id:
@@ -106,5 +132,12 @@ def create_weather_dataset(session: Session, data: WeatherDatasetCreate, user_id
 
 
 def list_weather_datasets(session: Session, user_id: str) -> list[WeatherDataset]:
-    statement = select(WeatherDataset).where(WeatherDataset.user_id == user_id)
+    statement = (
+        select(WeatherDataset)
+        .join(Dataset)
+        .where(
+            WeatherDataset.user_id == user_id,
+            Dataset.deleted_at == None
+        )
+    )
     return session.exec(statement).all()

@@ -68,8 +68,10 @@ Retrieves all datasets for the authenticated user.
       "uploadthing_key": "string",
       "user_id": "string",
       "validation_status": "PENDING" | "VALID" | "INVALID" | "WARNING",
+      "validation_report": {},
       "created_at": "string",
-      "row_count": number
+      "row_count": number,
+      "deleted_at": "string"
     }
   ]
   ```
@@ -132,7 +134,7 @@ Retrieves a preview (first N rows) of the dataset.
 - **URL**: `GET /datasets/{dataset_id}/preview`
 - **Status Code**: `200 OK`
 - **Query Parameters**:
-  - `file_url` (string, required): URL of the dataset.
+  - `file_url` (string, optional): URL of the dataset. If not provided, the URL from the database is used.
   - `rows` (number, default: 100): Number of rows to return (max 500).
 - **Response**: `DatasetPreviewResponse`
   ```json
@@ -209,10 +211,23 @@ Starts a preprocessing job to prepare data for training.
     "progress": number,
     "error": "string" (optional),
     "processed_file_path": "string" (optional),
-    "result_summary": {},
+    "result_summary": {
+      "feature_columns": ["string"],
+      "train_rows": number,
+      "val_rows": number,
+      "test_rows": number,
+      "processed_file_path": "string"
+    },
     "eda_charts": {}
   }
   ```
+
+### List Preprocessing Jobs
+Retrieves all preprocessing jobs for the authenticated user.
+
+- **URL**: `GET /preprocessing/jobs`
+- **Status Code**: `200 OK`
+- **Response**: `list[PreprocessingStatusResponse]`
 
 ### Get Preprocessing Status
 Retrieves the status and result of a preprocessing job.
@@ -227,11 +242,18 @@ Retrieves the status and result of a preprocessing job.
 
 Endpoints for training, evaluating, and managing machine learning models.
 
+### List Models
+Retrieves all trained models for the authenticated user.
+
+- **URL**: `GET /models`
+- **Status Code**: `200 OK`
+- **Response**: `list[ModelTrainResponse]`
+
 ### Train Model
 Starts a training job for a specific model type.
 
 - **URL**: `POST /models/train`
-- **Status Code**: `200 OK`
+- **Status Code**: `201 Created`
 - **Request Body**:
   ```json
   {
@@ -294,11 +316,34 @@ Calculates performance metrics for a trained model on a test set.
 
 Endpoints for generating and streaming predictions.
 
+### List Forecasts
+Retrieves all previous forecasts for the authenticated user.
+
+- **URL**: `GET /forecasts`
+- **Status Code**: `200 OK`
+- **Response**: `list[ForecastRead]`
+  ```json
+  [
+    {
+      "id": "string",
+      "user_id": "string",
+      "engine": "RF" | "SVR" | "AGENT",
+      "status": "PENDING" | "COMPLETE" | "FAILED",
+      "start_date": "string",
+      "horizon_days": number,
+      "resolution": "HOURLY" | "DAILY" | "WEEKLY",
+      "created_at": "string",
+      "predictions": [{}],
+      "reasoning": "string"
+    }
+  ]
+  ```
+
 ### Create Forecast
 Generates a forecast using a trained model or the AI Agent.
 
 - **URL**: `POST /forecast`
-- **Status Code**: `200 OK`
+- **Status Code**: `201 Created`
 - **Request Body**:
   ```json
   {

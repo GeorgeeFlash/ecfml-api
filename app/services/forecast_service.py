@@ -10,10 +10,13 @@ from uuid import uuid4
 import pandas as pd
 
 from app.config import settings
+from app.database import get_session
 from app.ml.persistence import load_sklearn_model
+from app.models.db import Dataset, Forecast
 from app.schemas.common import EngineType, Resolution
 from app.schemas.forecast import ForecastRequest, ForecastResponse
 from app.utils.job_store import job_store
+from sqlmodel import Session, select
 
 _agent_queues: dict[str, asyncio.Queue] = {}
 _agent_results: dict[str, dict] = {}
@@ -137,8 +140,10 @@ def _forecast_with_model(
     return predictions
 
 
-async def start_agent_run(app_state, request: ForecastRequest, processed_path: str) -> str:
-    agent_run_id = str(uuid4())
+async def start_agent_run(
+    app_state, request: ForecastRequest, processed_path: str, user_id: str, forecast_id: str
+) -> str:
+    agent_run_id = forecast_id  # Use forecast_id as agent_run_id for consistency
     queue: asyncio.Queue = asyncio.Queue()
     _agent_queues[agent_run_id] = queue
 
@@ -171,8 +176,30 @@ async def start_agent_run(app_state, request: ForecastRequest, processed_path: s
                 "confidence": None,
             }
             _agent_results[agent_run_id] = result
+            
+            # Persist to database
+            with next(get_session()) as session:
+                db_forecast = session.get(Forecast, forecast_id)
+                if db_forecast:
+                    db_forecast.status = "COMPLETE"
+                    db_forecast.predictions = result["predictions"]
+                    db_forecast.reasoning = result["reasoning"]
+                    session.add(db_forecast)
+                    session.commit()
+
             await queue.put({"type": "complete", "data": result})
         except Exception as exc:
+            # Update status to FAILED in DB
+            try:
+                with next(get_session()) as session:
+                    db_forecast = session.get(Forecast, forecast_id)
+                    if db_forecast:
+                        db_forecast.status = "FAILED"
+                        session.add(db_forecast)
+                        session.commit()
+            except Exception as db_exc:
+                print(f"Failed to update forecast status: {db_exc}")
+                
             await queue.put({"type": "error", "error": str(exc)})
         finally:
             await queue.put(None)
@@ -189,36 +216,66 @@ def get_agent_result(agent_run_id: str) -> dict | None:
     return _agent_results.get(agent_run_id)
 
 
-async def create_forecast(app_state, request: ForecastRequest) -> ForecastResponse:
+async def create_forecast(
+    app_state, request: ForecastRequest, session: Session, user_id: str
+) -> ForecastResponse:
     processed_path = _resolve_processed_path(request)
     if not os.path.exists(processed_path):
         raise FileNotFoundError("Processed file not found")
 
+    # Create initial forecast record
+    db_forecast = Forecast(
+        user_id=user_id,
+        engine=request.engine.value,
+        start_date=request.start_date,
+        horizon_days=request.horizon_days,
+        resolution=request.resolution.value,
+        status="PENDING",
+    )
+    session.add(db_forecast)
+    session.commit()
+    session.refresh(db_forecast)
+
     if request.engine in (EngineType.RF, EngineType.SVR):
-        model_path = _resolve_model_path(request)
-        if not model_path:
-            raise ValueError("Model file path required for RF/SVR forecasts")
-        if not os.path.exists(model_path):
-            raise FileNotFoundError("Model file not found")
+        try:
+            model_path = _resolve_model_path(request)
+            if not model_path:
+                raise ValueError("Model file path required for RF/SVR forecasts")
+            if not os.path.exists(model_path):
+                raise FileNotFoundError("Model file not found")
 
-        model = load_sklearn_model(model_path)
-        df = pd.read_parquet(processed_path)
-        predictions = _forecast_with_model(
-            model,
-            df,
-            request.start_date,
-            request.horizon_days,
-            request.resolution,
-        )
-        return ForecastResponse(
-            forecast_id=str(uuid4()),
-            engine=request.engine,
-            predictions=predictions,
-        )
+            model = load_sklearn_model(model_path)
+            df = pd.read_parquet(processed_path)
+            predictions = _forecast_with_model(
+                model,
+                df,
+                request.start_date,
+                request.horizon_days,
+                request.resolution,
+            )
+            
+            # Update record with results
+            db_forecast.status = "COMPLETE"
+            db_forecast.predictions = predictions
+            session.add(db_forecast)
+            session.commit()
+            
+            return ForecastResponse(
+                forecast_id=db_forecast.id,
+                engine=request.engine,
+                predictions=predictions,
+            )
+        except Exception as e:
+            db_forecast.status = "FAILED"
+            session.add(db_forecast)
+            session.commit()
+            raise e
 
-    agent_run_id = await start_agent_run(app_state, request, processed_path)
+    agent_run_id = await start_agent_run(
+        app_state, request, processed_path, user_id, db_forecast.id
+    )
     return ForecastResponse(
-        forecast_id=str(uuid4()),
+        forecast_id=db_forecast.id,
         engine=request.engine,
         predictions=[],
         agent_run_id=agent_run_id,

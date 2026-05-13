@@ -39,6 +39,8 @@ class DatasetRead(DatasetCreate):
     validation_status: str
     created_at: datetime
     row_count: Optional[int] = None
+    validation_report: Optional[dict] = None
+    deleted_at: Optional[datetime] = None
 
 
 class WeatherDatasetCreate(BaseModel):
