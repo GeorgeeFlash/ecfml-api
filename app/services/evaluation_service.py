@@ -26,13 +26,17 @@ def evaluate_model(request: ModelEvaluateRequest) -> ModelEvaluateResponse:
     y_pred = model.predict(X_test)
     metrics = compute_metrics(y_test, y_pred)
 
+    timestamp_values = (
+        timestamps.tolist() if timestamps is not None else [None] * len(y_test)
+    )
+
     actual = [
         {"timestamp": str(ts) if timestamps is not None else None, "value": float(val)}
-        for ts, val in zip(timestamps or [None] * len(y_test), y_test.tolist())
+        for ts, val in zip(timestamp_values, y_test.tolist())
     ]
     predicted = [
         {"timestamp": str(ts) if timestamps is not None else None, "value": float(val)}
-        for ts, val in zip(timestamps or [None] * len(y_pred), y_pred.tolist())
+        for ts, val in zip(timestamp_values, y_pred.tolist())
     ]
 
     feature_importance = None

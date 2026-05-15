@@ -1,1 +1,10 @@
 .env
+.venv
+ecfml.db
+/models
+*.pyc
+# Ignore Python cache directories
+__pycache__/
+**/__pycache__/
+**/**/__pycache__/
+.pytest_cache/

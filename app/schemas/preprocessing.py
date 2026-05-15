@@ -11,6 +11,7 @@ class SplitConfig(BaseModel):
 
 class PreprocessingRunRequest(BaseModel):
     job_id: str
+    dataset_id: str
     dataset_url: str
     weather_url: str | None = None
     splits: SplitConfig | None = None

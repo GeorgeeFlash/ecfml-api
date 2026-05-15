@@ -110,9 +110,8 @@ async def evaluate_model_route(
 ):
     try:
         logger.info(f"User {user['sub']} evaluating model: {model_id}")
-        if not body.model_file_path:
-            body.model_file_path = model_id
-        return evaluate_model(body)
+        request = body.model_copy(update={"model_file_path": body.model_file_path or model_id})
+        return evaluate_model(request)
     except Exception as e:
         logger.error(f"Error evaluating model {model_id}: {str(e)}")
         raise HTTPException(
